@@ -1,4 +1,4 @@
-const mongo = require("mongoose")
+const mongo1 = require("mongoose")
 
 const vaultSchema = mongo.Schema({
     vaultCode: {
@@ -9,14 +9,10 @@ const vaultSchema = mongo.Schema({
         type: String,
         required: false
     },
-    filesLink: {
-        type: String,
-        required: true
-    },
     duration: {
         type: Date,
         required: true
     }
 })
 
-module.exports = mongo.model("Vault", vaultSchema)
+module.exports = mongo1.model("Vault", vaultSchema)

@@ -4,16 +4,17 @@ import { Separator } from "@/components/ui/separator"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+
 import React from "react"
 import { useState, useEffect } from "react"
 
 import DurationCounter from "@/components/ui/duration-counter"
-import { Upload } from "lucide-react"
-import { Trash } from "lucide-react"
+import { Trash, Loader2, Upload } from "lucide-react"
 
-import Link from "next/link"
-
+import { useRouter } from "next/navigation";
 import { toast } from "sonner"
+
+import { URL } from "@/app/constants"
 
 import {
   Card,
@@ -24,20 +25,20 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 
-const durationData: number[] = [5, 15, 30, 60, 180, 360, 720, 1440]
-
 export default function New() {
-  const vaultCode = "503E"
+  const router = useRouter(); 
 
   const [duration, setDuration] = useState<number>(0)
-
+  const [files, setFiles] = useState<File[]>([])
   const [isPass, setIsPass] = useState<boolean>(false)
   const [password, setPassword] = useState<string>('')
+
+  const durationData: number[] = [5, 15, 30, 60, 180, 360, 720, 1440]
+  const vaultCode = "503E"
+
   function onClick(change: number) {
     setDuration(Math.max(0, Math.min(7, duration + change)))
   }
-
-  const [files, setFiles] = useState<File[]>([])
 
   const fileSizeExceeded = (maxMB: number, newFileSize: number) => {
     let sizeCal =  newFileSize
@@ -69,13 +70,44 @@ export default function New() {
     setFiles(prevFiles => prevFiles.filter((_, i) => idx !== i ))
   } 
 
-  const [shouldRedirect, setShouldRedirect] = useState(false);
+  const postFiles = async () => {
+    const formData = new FormData();
 
-  const handleCreate = () => {
+    for (const file of files) {
+        formData.append("files", file); 
+    }
+
+    formData.append("duration", duration.toString());
+
+    const response = await fetch(`${URL}/upload`, {
+        method: "POST",
+        body: formData,  
+    });
+
+    return await response.json();
+  }
+
+  const handleCreate = async () => {
     if (files.length === 0) {
       toast.error("Please provide files");
     } else {
-      setShouldRedirect(true); 
+      const res = await postFiles()
+      let success = true
+      for (const file of res.results) {
+        console.log(file.url)
+        if (file.success===false) {
+          success = false
+          break
+        }
+      }
+
+      if (success===true) {
+        toast.success("Vault created successfully")
+        router.push(`/${vaultCode}`);
+      } else {
+        toast.error("Error creating vault")
+        setFiles([])
+      }
     }
   };
 
@@ -90,7 +122,7 @@ export default function New() {
             id="fileUpload"
             multiple
             onChange={handleFileChange}
-            />
+          />
             
             <label 
               htmlFor="fileUpload" 
@@ -161,16 +193,8 @@ export default function New() {
               </div> 
               } 
               </div>
-              <div className="flex-1">
-                
-                {files.length===0 ? (
-                    <Button onClick={handleCreate} className="w-full">Create</Button>
-                  )
-                  :
-                  <Link onClick={handleCreate} href={`/${vaultCode}`}>
-                    <Button className="w-full">Create</Button> 
-                  </Link>
-                }
+              <div className="flex-1">                
+                <Button onClick={handleCreate} className="w-full">Create</Button>
               </div>
             </div>
 
