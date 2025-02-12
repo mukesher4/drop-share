@@ -6,8 +6,11 @@ import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation";
 
 import { useState } from "react"
+
+import { URL } from "@/app/constants"
 
 import {
   Card,
@@ -19,12 +22,37 @@ import {
 } from "@/components/ui/card"
 
 export default function Home() {
+    const router = useRouter(); 
+  
   const [vaultCode, setVaultCode] = useState<string>('')
   const [password, setPassword] = useState<string>('')
   const handleJoin = () => {
+    console.log(vaultCode, password)
+    const options = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        vaultCode: vaultCode,
+        password: password
+      })
+    }
+
+    fetch(`${URL}/verify`, options)
+      .then(res=>{
+        if(res.ok)
+        {
+          router.push(`/${vaultCode}`);
+        }
+        else {
+          toast.error("Enter correct credentials")
+        }
+      })
     if (vaultCode.length === 0)
     toast.error("Enter vault code")
   }
+  
   return (
     <div className="font-mono flex mx-auto max-w-xl h-screen items-center justify-center min-h-screen font-[family-name:var(--font-geist-sans)]">
       <Card className="w-full">
@@ -52,14 +80,14 @@ export default function Home() {
 
               </div>
               <div className="h-full">
-                  {vaultCode.length===0 ? (
-                      <Button onClick={handleJoin} className="font-medium text-sm h-[80px]">Join</Button>
-                    )
-                    :
-                    <Link onClick={handleJoin} href={`/${vaultCode}`}>
-                      <Button className="font-medium text-sm h-[80px]">Join</Button> 
-                    </Link>
-                  }
+                  {/* {vaultCode.length===0 ? ( */}
+                    <Button onClick={handleJoin} className="font-medium text-sm h-[80px]">Join</Button>
+                    {/* ) */}
+                    {/* : */}
+                    {/* <Link onClick={handleJoin} href={`/${vaultCode}`}> */}
+                      {/* <Button className="font-medium text-sm h-[80px]">Join</Button>  */}
+                    {/* </Link> */}
+                  {/* } */}
               </div>
             </div>
           </div>

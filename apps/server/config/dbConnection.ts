@@ -13,4 +13,38 @@ const connectDb = async () => {
 	}
 };
 
-module.exports = connectDb;
+const vaultSchema = new mongoose.Schema({
+    vaultCode: {
+        type: String,
+        required: true
+    },
+    passwordHash: {
+        type: String
+    },
+	expireAt: {
+		type: Date,
+		expires: '1m'
+	}
+})
+
+const Vault = mongoose.model("Vault", vaultSchema)
+
+const fileVaultSchema = new mongoose.Schema({
+    vault_id: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: true,
+        ref: "Vault"
+    },
+	fileName: {
+		type: String,
+		required: true
+	},
+    fileURL: {
+        type: String,
+        required: true
+    },
+})
+
+const FileVault = mongoose.model("FileVault", fileVaultSchema)
+
+module.exports = { connectDb, Vault, FileVault } 

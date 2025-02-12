@@ -34,7 +34,7 @@ export default function New() {
   const [password, setPassword] = useState<string>('')
 
   const durationData: number[] = [5, 15, 30, 60, 180, 360, 720, 1440]
-  const vaultCode = "503E"
+  let vaultCode
 
   function onClick(change: number) {
     setDuration(Math.max(0, Math.min(7, duration + change)))
@@ -77,7 +77,11 @@ export default function New() {
         formData.append("files", file); 
     }
 
-    formData.append("duration", duration.toString());
+    formData.append("duration", (durationData[duration]).toString());
+
+    if (isPass) {
+      formData.append("password", password)
+    }
 
     const response = await fetch(`${URL}/upload`, {
         method: "POST",
@@ -92,6 +96,7 @@ export default function New() {
       toast.error("Please provide files");
     } else {
       const res = await postFiles()
+      vaultCode = res.vaultCode
       let success = true
       for (const file of res.results) {
         console.log(file.url)
