@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 import React from "react"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 
 import DurationCounter from "@/components/ui/duration-counter"
 import { Trash, Loader2, Upload } from "lucide-react"
@@ -19,10 +19,6 @@ import { URL } from "@/app/constants"
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card"
 
 export default function New() {
@@ -34,7 +30,7 @@ export default function New() {
   const [password, setPassword] = useState<string>('')
 
   const durationData: number[] = [5, 15, 30, 60, 180, 360, 720, 1440]
-  let vaultCode
+  let vaultCode = ''
 
   function onClick(change: number) {
     setDuration(Math.max(0, Math.min(7, duration + change)))
@@ -48,8 +44,8 @@ export default function New() {
   }
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (fileSizeExceeded(10, event.target.files?.length ? event.target.files[0].size : 0)) {
-      toast.error("Files size should not exceed 10 MB")
+    if (fileSizeExceeded(100, event.target.files?.length ? event.target.files[0].size : 0)) {
+      toast.error("Files size should not exceed 100 MB")
       return;
     }
 
@@ -83,18 +79,34 @@ export default function New() {
       formData.append("password", password)
     }
 
-    const response = await fetch(`${URL}/upload`, {
-        method: "POST",
-        body: formData,  
-    });
+    try {
+      const response = await fetch(`${URL}/upload`, {
+          method: "POST",
+          body: formData,
+      });
 
-    return await response.json();
+      if (!response.ok) {
+          const errorData = await response.json();
+          const errorMessage = errorData.error || `HTTP error! status: ${response.status}`;
+          throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      return data;
+
+  } catch (error) {
+      console.error("Error uploading files:", error);    
   }
+
+  }
+
+  const [loader, setIsLoader] = useState<boolean>(false)
 
   const handleCreate = async () => {
     if (files.length === 0) {
       toast.error("Please provide files");
     } else {
+      setIsLoader(true)
       const res = await postFiles()
       vaultCode = res.vaultCode
       let success = true
@@ -107,6 +119,7 @@ export default function New() {
       }
 
       if (success===true) {
+        setIsLoader(false)
         toast.success("Vault created successfully")
         router.push(`/${vaultCode}`);
       } else {
@@ -147,25 +160,33 @@ export default function New() {
                   </span>
                 </div>
               :
-              <ScrollArea className="h-full pt-4 px-4">
-                <div className="flex flex-col items-start justify-start ">
-                  {files.map((file, idx)=>(
-                    <>
-                      <div className=" flex flex-row items-center w-full pr-2" key={idx}>
-                        <div className=" text-left text-sm w-[calc(100%-4rem)] truncate" key={idx}>
-                            {file.name}
-                        </div>
-                          <Trash
-                          onClick={()=>handleDelete(idx)}
-                          className="pl-12 flex-1 flex-shrink-0 w-4 h-4 text-red-500 cursor-pointer hover:text-red-700" />
-                      </div>
-                        
-                      <Separator className="my-2 w-[calc(100%-0rem)] mx-auto" />
-                    </>
-                  ))}
+                <div className="relative h-full w-full"> 
+                  <ScrollArea className={`h-full pt-4 px-4 ${loader ? 'opacity-50 pointer-events-none' : ''}`}> 
+                    <div className="flex flex-col items-start justify-start">
+                      {files.map((file, idx) => (
+                        <React.Fragment key={idx}>
+                          <div className="flex flex-row items-center w-full pr-2">
+                            <div className="text-left text-sm w-[400px] truncate">
+                              {file.name}
+                            </div>
+                            <Trash
+                              onClick={() => handleDelete(idx)}
+                              className={`pl-12 flex-1 flex-shrink-0 w-4 h-4 text-red-500 hover:text-red-700 ${loader ? 'disabled' : ''}`} 
+                            />
+                          </div>
+                          <Separator className="my-2 w-[calc(100%-0rem)] mx-auto" />
+                        </React.Fragment>
+                      ))}
+                    </div>
+                    <ScrollBar orientation="vertical" />
+                  </ScrollArea>
+
+                  {loader && ( 
+                    <div className="absolute inset-0 flex items-center justify-center bg-transparent">
+                      <Loader2 className="h-8 w-8 animate-spin" />
+                    </div>
+                  )}
                 </div>
-                <ScrollBar orientation="vertical"/>
-              </ScrollArea>
               }
             </Card>
             

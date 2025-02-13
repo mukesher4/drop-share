@@ -24,6 +24,10 @@ const vaultSchema = new mongoose.Schema({
 	expireAt: {
 		type: Date,
 		expires: '1m'
+	},
+	duration: {
+		type: Number,
+		required: true
 	}
 })
 

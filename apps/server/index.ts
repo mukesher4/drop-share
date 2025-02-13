@@ -6,18 +6,18 @@ const bcrypt = require("bcrypt");
 const { connectDb, Vault, FileVault } = require('./config/dbConnection');
 const cors = require('cors')
 
-const axios = require('axios');
-
-import { hashPassword, comparePassword } from './auth';
-import { error } from 'console';
-
 dotenv.config();
 connectDb();
 
 const app = express();
-const upload = multer({ limits: { fileSize: 1024 * 1024 * 2048 } }); 
+const upload = multer({ limits: { fileSize: 1024 * 1024 * 512 } }); 
 
-app.use(cors());
+const corsOptions = {
+    origin: '*', 
+    methods: ['GET', 'POST'], 
+  };
+
+app.use(cors(corsOptions));
 app.use(express.json())
 
 const account: string = process.env.ACCOUNT_NAME || '';
@@ -51,24 +51,20 @@ async function generateUniqueVaultCode() {
   return vaultCode;
 }
 
-app.post('/verify', async (req: any, res: any) => {
+app.get('/verify/:vaultCode', async (req: any, res: any) => {
     try {
-        console.log(`req.body: ${req.body}`)
-        const { vaultCode, password } = req.body;
+        const { vaultCode } = req.params;
 
-        if (!vaultCode || !password) {
-            return res.status(400).json({ error: "Missing vaultCode or password" }); 
+        if (!vaultCode) {
+            return res.status(400).json({ error: "Missing vaultCode" }); 
         }
         const vault = await Vault.findOne({ vaultCode });
         if (!vault) {
-            throw new Error("Vault not found")
-        }
-        if (vault?.passwordHash && (await bcrypt.compare(password, vault.passwordHash))) {
-            res.status(200).json({ ok: true })
+            return res.status(404).json({ error: "Vault not found" })
         } else {
-            res.status(200).json({ ok: false })
+            return res.status(200).json({ ok: true })
+            
         }
-
     } catch (err) {
         console.error("Error in /verify", err);
         res.status(404)
@@ -81,12 +77,10 @@ app.post('/upload', upload.array('files'), async (req: any, res: any) => {
             return res.status(400).json({ error: 'No files uploaded' });
         }
 
-        console.log(req.body)
-
         const password = req.body.password || '';
-        const passwordHash = password ? await bcrypt.hash(password, 10) : undefined; // Hash only if password provided
+        const passwordHash = password ? await bcrypt.hash(password, 10) : undefined; 
         const vaultCode = await generateUniqueVaultCode();
-        const duration = parseInt(req.body.duration as string); // Type assertion for duration
+        const duration = parseInt(req.body.duration as string); 
 
         if (isNaN(duration) || duration < 5 || duration > 1440) {
             return res.status(400).json({ error: "Duration must be between 5 and 1440 minutes" });
@@ -105,10 +99,10 @@ app.post('/upload', upload.array('files'), async (req: any, res: any) => {
             console.log("Response from creating vault", vault);
         } catch (err) {
             console.error("Error adding vault info in mongodb", err);
-            return res.status(500).json({ error: "Error creating vault" }); // Return error response
+            return res.status(500).json({ error: "Error creating vault" }); 
         }
 
-        const uploadPromises = (req.files as Express.Multer.File[]).map(async (file: Express.Multer.File) => { // Type assertion for req.files and file
+        const uploadPromises = (req.files as Express.Multer.File[]).map(async (file: Express.Multer.File) => { 
             const blobName = file.originalname;
             const blockBlobClient = containerClient.getBlockBlobClient(blobName);
             const stream = file.buffer;
@@ -121,7 +115,7 @@ app.post('/upload', upload.array('files'), async (req: any, res: any) => {
 
                 const sasToken = await blockBlobClient.generateSasUrl({
                     permissions,
-                    expiresOn: expireAt // Use the same expireAt for SAS token
+                    expiresOn: expireAt 
                 });
 
                 try {
@@ -154,39 +148,64 @@ app.post('/upload', upload.array('files'), async (req: any, res: any) => {
 });
 
 
-app.get('/files/:vaultCode', async (req: any, res: any) => {
+app.post('/files', async (req: any, res: any) => {
     try {
-        const { vaultCode } = req.params;
-        const providedPasswordHash = req.query.passwordHash as string | undefined; // Type assertion and optional
-
+        const { vaultCode, password } = req.body;
+        console.log(vaultCode, password)
         const vault = await Vault.findOne({ vaultCode });
-
+        console.log(vault)
         if (!vault) {
-            return res.status(404).json({ error: 'Vault not found' });
+            return res.status(404).json({ error: 'Vault not found', passwordMissing: false });
         }
 
         if (vault.expireAt && vault.expireAt < new Date()) {
-            return res.status(400).json({ error: 'Vault has expired' });
+            return res.status(400).json({ error: 'Vault has expired', expireAt: vault.expireAt, passwordMissing: false });
         }
 
         if (vault.passwordHash) {
-            if (!providedPasswordHash || !(await bcrypt.compare(providedPasswordHash, vault.passwordHash))) {
-                return res.status(403).json({ error: 'Password is missing or invalid' });
+            if (!password || !(await bcrypt.compare(password, vault.passwordHash))) {
+                return res.status(403).json({ 
+                    error: 'Password is missing or invalid', 
+                    passwordMissing: true 
+                });
             }
         }
 
-        const files: (any)[] = await FileVault.find({ vault_id: vault._id });
-        const plainFiles: any[] = files.map((file: any) => file.toObject() as any);
+        const files = await FileVault.find({ vault_id: vault._id });
+        const plainFiles = files.map((file: any) => file.toObject());
 
-        return res.status(200).json({ plainFiles, expireAt: vault.expireAt});
+        return res.status(200).json({ plainFiles, expireAt: vault.expireAt, passwordMissing: false });
 
     } catch (err) {
-        console.error('File retrieval error:', err); // Corrected error variable
-        res.status(500).json({ error: 'File retrieval error' });
+        console.error('File retrieval error:', err); 
+        res.status(500).json({ error: 'File retrieval error', passwordMissing: false });
     }
 });
 
-const PORT: number = parseInt(process.env.PORT || '4000');
-app.listen(PORT, () => {
+app.get('/test', async (req: any, res: any) => {
+    // return res.status(200).json({ 'message': 'CORS works!' })
+    async function getAllVaults(){
+        try {
+            const vaults = await Vault.find({}); 
+            return vaults.map((vault: any) => vault.toObject()); 
+        } catch (error) {
+            console.error("Error fetching vaults:", error);
+            throw error; 
+        }
+    }
+    try {
+        const allVaults = await getAllVaults();
+        console.log(allVaults); 
+        allVaults.forEach((vault: any) => {
+          console.log("Vault Code:", vault.vaultCode);
+          console.log("Expire At:", vault.expireAt);
+        });
+      } catch (error) {
+        console.error("Error in displayVaults:", error);
+      }
+})
+
+const PORT: number = parseInt(process.env.PORT || '5001');
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
 });
