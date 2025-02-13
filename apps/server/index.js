@@ -187,6 +187,6 @@ app.get('/test', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     }
 }));
 const PORT = parseInt(process.env.PORT || '5001');
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });

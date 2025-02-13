@@ -206,6 +206,6 @@ app.get('/test', async (req: any, res: any) => {
 })
 
 const PORT: number = parseInt(process.env.PORT || '5001');
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
