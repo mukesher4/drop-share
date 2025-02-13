@@ -182,27 +182,8 @@ app.post('/files', async (req: any, res: any) => {
     }
 });
 
-app.get('/test', async (req: any, res: any) => {
-    // return res.status(200).json({ 'message': 'CORS works!' })
-    async function getAllVaults(){
-        try {
-            const vaults = await Vault.find({}); 
-            return vaults.map((vault: any) => vault.toObject()); 
-        } catch (error) {
-            console.error("Error fetching vaults:", error);
-            throw error; 
-        }
-    }
-    try {
-        const allVaults = await getAllVaults();
-        console.log(allVaults); 
-        allVaults.forEach((vault: any) => {
-          console.log("Vault Code:", vault.vaultCode);
-          console.log("Expire At:", vault.expireAt);
-        });
-      } catch (error) {
-        console.error("Error in displayVaults:", error);
-      }
+app.get('/', async (req: any, res: any) => {
+    return res.status(200).json({ 'message': 'CORS works!' })
 })
 
 const PORT: number = parseInt(process.env.PORT || '5001');
