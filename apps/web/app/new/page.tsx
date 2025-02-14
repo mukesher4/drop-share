@@ -44,8 +44,8 @@ export default function New() {
   }
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (fileSizeExceeded(100, event.target.files?.length ? event.target.files[0].size : 0)) {
-      toast.error("Files size should not exceed 100 MB")
+    if (fileSizeExceeded(128, event.target.files?.length ? event.target.files[0].size : 0)) {
+      toast.error("Files size should not exceed 128 MB")
       return;
     }
 
