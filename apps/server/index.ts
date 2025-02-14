@@ -13,9 +13,9 @@ const app = express();
 const upload = multer({ limits: { fileSize: 1024 * 1024 * 512 } }); 
 
 const corsOptions = {
-    origin: '*', 
+    origin: ["dropshare-ten.vercel.app", "https://dropshare-mukesh-rs-projects.vercel.app/", "https://dropshare-git-main-mukesh-rs-projects.vercel.app/"], 
     methods: ['GET', 'POST'], 
-  };
+};
 
 app.use(cors(corsOptions));
 app.use(express.json())

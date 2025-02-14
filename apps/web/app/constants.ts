@@ -1,1 +1,1 @@
-export const URL='http://192.168.22.45:5001'
+export const URL='https://dropshare-server.vercel.app/'
