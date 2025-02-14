@@ -1,4 +1,5 @@
-import express, { Request, Response } from 'express';
+import express, { Request } from 'express';
+const bodyParser = require('body-parser');
 import multer from 'multer';
 import { BlobServiceClient, BlobSASPermissions, StorageSharedKeyCredential } from '@azure/storage-blob';
 import dotenv from 'dotenv';
@@ -11,14 +12,6 @@ connectDb();
 
 const app = express();
 
-const storage = multer.memoryStorage(); 
-const upload = multer({ 
-    limits: { 
-        fileSize: 1024 * 1024 * 512
-    },
-    storage: storage
-}); 
-
 // ["https://dropshare-ten.vercel.app", "https://dropshare-mukesh-rs-projects.vercel.app", "https://dropshare-git-main-mukesh-rs-projects.vercel.app"]
 
 const corsOptions = {
@@ -26,8 +19,19 @@ const corsOptions = {
     methods: ['GET', 'POST'], 
 };
 
+app.use(bodyParser.json({ limit: '512mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '512mb' }));
+
 app.use(cors(corsOptions));
 app.use(express.json())
+
+const storage = multer.memoryStorage(); 
+const upload = multer({ 
+    limits: { 
+        fileSize: 1024 * 1024 * 512
+    },
+    storage: storage
+}); 
 
 const account: string = process.env.ACCOUNT_NAME || '';
 const containerName: string = process.env.CONTAINER || '';
