@@ -20,7 +20,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json())
+app.use(express.json({ limit: '512mb' }))
 
 const account: string = process.env.ACCOUNT_NAME || '';
 const containerName: string = process.env.CONTAINER || '';
