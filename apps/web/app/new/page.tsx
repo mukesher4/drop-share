@@ -96,6 +96,10 @@ export default function New() {
 
   } catch (error) {
       console.error("Error uploading files:", error);    
+      toast.error("Error uploading files")
+      setIsLoader(false)
+      setFiles([])
+      
   }
 
   }
