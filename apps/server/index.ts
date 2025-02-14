@@ -51,26 +51,6 @@ async function generateUniqueVaultCode() {
   return vaultCode;
 }
 
-app.get('/verify/:vaultCode', async (req: any, res: any) => {
-    // try {
-    //     const { vaultCode } = req.params;
-
-    //     if (!vaultCode) {
-    //         return res.status(400).json({ error: "Missing vaultCode" }); 
-    //     }
-    //     const vault = await Vault.findOne({ vaultCode });
-    //     if (!vault) {
-    //         return res.status(404).json({ error: "Vault not found" })
-    //     } else {
-    //         return res.status(200).json({ ok: true })
-            
-    //     }
-    // } catch (err) {
-    //     console.error("Error in /verify", err);
-    //     res.status(404)
-    // }
-    res.status(200).json("Reached path /verify/"+req.params.vaultCode+"!")
-}) 
 
 app.post('/upload', upload.array('files'), async (req: any, res: any) => {
     try {
@@ -183,8 +163,35 @@ app.post('/files', async (req: any, res: any) => {
     }
 });
 
-app.get('/', async (req: any, res: any) => {
-    return res.status(200).json({ 'message': 'CORS works!' })
+app.get('/verify/:vaultCode', async (req: any, res: any) => {
+    // try {
+    //     const { vaultCode } = req.params;
+
+    //     if (!vaultCode) {
+    //         return res.status(400).json({ error: "Missing vaultCode" }); 
+    //     }
+    //     const vault = await Vault.findOne({ vaultCode });
+    //     if (!vault) {
+    //         return res.status(404).json({ error: "Vault not found" })
+    //     } else {
+    //         return res.status(200).json({ ok: true })
+            
+    //     }
+    // } catch (err) {
+    //     console.error("Error in /verify", err);
+    //     res.status(404)
+    // }
+    res.status(200).json("Reached path /verify/"+req.params.vaultCode+"!")
+}) 
+
+app.get('/', async (req: any, res: any) => {    
+    const vault = await Vault.findOne({ vaultCode: "AB04" });
+    if (!vault) {
+        return res.status(404).json({ error: "Vault not found" })
+    } else {
+        return res.status(200).json({ ok: true })
+        
+    }
 })
 
 const PORT: number = parseInt(process.env.PORT || '5001');
