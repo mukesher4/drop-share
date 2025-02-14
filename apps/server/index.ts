@@ -25,13 +25,12 @@ app.use(bodyParser.urlencoded({ extended: true, limit: '512mb' }));
 app.use(cors(corsOptions));
 app.use(express.json())
 
-const storage = multer.memoryStorage(); 
 const upload = multer({ 
     limits: { 
         fileSize: 1024 * 1024 * 512
-    },
-    storage: storage
+    }
 }); 
+
 
 const account: string = process.env.ACCOUNT_NAME || '';
 const containerName: string = process.env.CONTAINER || '';
