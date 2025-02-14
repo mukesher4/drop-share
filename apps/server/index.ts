@@ -184,7 +184,7 @@ async function generateUniqueVaultCode() {
 //     res.status(200).json("Reached path /verify/"+req.params.vaultCode+"!")
 // }) 
 
-app.get('/:vaultCode', async (req: any, res: any) => {   
+app.get('vault/:vaultCode', async (req: any, res: any) => {   
         const { vaultCode } = req.params 
         return res.status(200).json({ vaultCode })        
     }
