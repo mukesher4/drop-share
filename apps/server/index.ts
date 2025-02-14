@@ -184,8 +184,9 @@ app.get('/verify/:vaultCode', async (req: any, res: any) => {
     res.status(200).json("Reached path /verify/"+req.params.vaultCode+"!")
 }) 
 
-app.get('/', async (req: any, res: any) => {    
-    const vault = await Vault.findOne({ vaultCode: "AB04" });
+app.get('/:vaultCode', async (req: any, res: any) => {   
+    const { vaultCode } = req.params 
+    const vault = await Vault.findOne({ vaultCode });
     if (!vault) {
         return res.status(404).json({ error: "Vault not found" })
     } else {
