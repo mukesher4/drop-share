@@ -159,8 +159,15 @@ app.get('/verify/:vaultCode', (req, res) => __awaiter(void 0, void 0, void 0, fu
     // }
     res.status(200).json("Reached path /verify/" + req.params.vaultCode + "!");
 }));
-app.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    return res.status(200).json({ 'message': 'CORS works!' });
+app.get('/:vaultCode', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { vaultCode } = req.params;
+    const vault = yield Vault.findOne({ vaultCode });
+    if (!vault) {
+        return res.status(404).json({ error: "Vault not found" });
+    }
+    else {
+        return res.status(200).json({ ok: true });
+    }
 }));
 const PORT = parseInt(process.env.PORT || '5001');
 app.listen(PORT, () => {

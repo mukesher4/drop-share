@@ -9,8 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.hashPassword = hashPassword;
-exports.comparePassword = comparePassword;
+exports.comparePassword = exports.hashPassword = void 0;
 const argon2 = require('argon2');
 function hashPassword(password) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -24,6 +23,7 @@ function hashPassword(password) {
         }
     });
 }
+exports.hashPassword = hashPassword;
 function comparePassword(password, hash) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -36,3 +36,4 @@ function comparePassword(password, hash) {
         }
     });
 }
+exports.comparePassword = comparePassword;

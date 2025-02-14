@@ -185,15 +185,10 @@ app.get('/verify/:vaultCode', async (req: any, res: any) => {
 }) 
 
 app.get('/:vaultCode', async (req: any, res: any) => {   
-    const { vaultCode } = req.params 
-    const vault = await Vault.findOne({ vaultCode });
-    if (!vault) {
-        return res.status(404).json({ error: "Vault not found" })
-    } else {
-        return res.status(200).json({ ok: true })
-        
+        const { vaultCode } = req.params 
+        return res.status(200).json({ vaultCode })        
     }
-})
+)
 
 const PORT: number = parseInt(process.env.PORT || '5001');
 app.listen(PORT, () => {
