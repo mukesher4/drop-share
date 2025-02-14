@@ -10,7 +10,14 @@ dotenv.config();
 connectDb();
 
 const app = express();
-const upload = multer({ limits: { fileSize: 1024 * 1024 * 512 } }); 
+
+const storage = multer.memoryStorage(); 
+const upload = multer({ 
+    limits: { 
+        fileSize: 1024 * 1024 * 512
+    },
+    storage: storage
+}); 
 
 // ["https://dropshare-ten.vercel.app", "https://dropshare-mukesh-rs-projects.vercel.app", "https://dropshare-git-main-mukesh-rs-projects.vercel.app"]
 
@@ -20,7 +27,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json({ limit: '512mb' }))
+app.use(express.json())
 
 const account: string = process.env.ACCOUNT_NAME || '';
 const containerName: string = process.env.CONTAINER || '';
