@@ -4,7 +4,7 @@ import { BlobServiceClient, BlobSASPermissions, StorageSharedKeyCredential } fro
 import dotenv from 'dotenv';
 const bcrypt = require("bcrypt");
 const { connectDb, Vault, FileVault } = require('./config/dbConnection');
-const cors = require('cors')
+import cors from 'cors';
 
 dotenv.config();
 connectDb();
@@ -52,23 +52,24 @@ async function generateUniqueVaultCode() {
 }
 
 app.get('/verify/:vaultCode', async (req: any, res: any) => {
-    try {
-        const { vaultCode } = req.params;
+    // try {
+    //     const { vaultCode } = req.params;
 
-        if (!vaultCode) {
-            return res.status(400).json({ error: "Missing vaultCode" }); 
-        }
-        const vault = await Vault.findOne({ vaultCode });
-        if (!vault) {
-            return res.status(404).json({ error: "Vault not found" })
-        } else {
-            return res.status(200).json({ ok: true })
+    //     if (!vaultCode) {
+    //         return res.status(400).json({ error: "Missing vaultCode" }); 
+    //     }
+    //     const vault = await Vault.findOne({ vaultCode });
+    //     if (!vault) {
+    //         return res.status(404).json({ error: "Vault not found" })
+    //     } else {
+    //         return res.status(200).json({ ok: true })
             
-        }
-    } catch (err) {
-        console.error("Error in /verify", err);
-        res.status(404)
-    }
+    //     }
+    // } catch (err) {
+    //     console.error("Error in /verify", err);
+    //     res.status(404)
+    // }
+    res.status(200).json("Reached path /verify/"+req.params.vaultCode+"!")
 }) 
 
 app.post('/upload', upload.array('files'), async (req: any, res: any) => {
