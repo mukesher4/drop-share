@@ -124,7 +124,7 @@ export default function New() {
       const results = data.sasTokens as Result[]
 
       await Promise.all(files.map(async (file, index) => {
-        const { fileName, uploadUrl } = results[index];
+        const { uploadUrl } = results[index];
 
         await fetch(uploadUrl, {
           method: "PUT",

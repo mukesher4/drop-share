@@ -29,8 +29,7 @@ const vaultSchema = new mongoose.Schema({
     },
     expireAt: {
         type: Date,
-        expires: '1m',
-        required: true
+        expires: '1m'
     },
     duration: {
         type: Number,
@@ -38,7 +37,6 @@ const vaultSchema = new mongoose.Schema({
     }
 });
 const Vault = mongoose.model("Vault", vaultSchema);
-
 const fileVaultSchema = new mongoose.Schema({
     vault_id: {
         type: mongoose.Schema.Types.ObjectId,
@@ -50,15 +48,7 @@ const fileVaultSchema = new mongoose.Schema({
         required: true
     },
     fileURL: {
-        type: String
-    },
-    pending: {
-        type: Boolean,
-        required: true
-    },
-    expireAt: {
-        type: Date,
-        expires: '1m',
+        type: String,
         required: true
     },
 });

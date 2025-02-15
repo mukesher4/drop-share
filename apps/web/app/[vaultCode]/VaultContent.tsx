@@ -133,7 +133,7 @@ export default function VaultContent({ vaultCode }: { vaultCode: string }) {
         }
       }
     }
-  }, [vaildAuth, vaultCode]);
+  }, [vaildAuth, vaultCode, password]);
 
   useEffect(() => {
     if (vaultCode) {

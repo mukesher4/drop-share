@@ -13,6 +13,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
+const bodyParser = require('body-parser');
 const multer_1 = __importDefault(require("multer"));
 const storage_blob_1 = require("@azure/storage-blob");
 const dotenv_1 = __importDefault(require("dotenv"));
@@ -22,13 +23,25 @@ const cors_1 = __importDefault(require("cors"));
 dotenv_1.default.config();
 connectDb();
 const app = (0, express_1.default)();
-const upload = (0, multer_1.default)({ limits: { fileSize: 1024 * 1024 * 512 } });
+[
+    "http://localhost:3000",
+    "https://dropshare-ten.vercel.app",
+    "https://dropshare-mukesh-rs-projects.vercel.app",
+    "https://dropshare-git-main-mukesh-rs-projects.vercel.app"
+];
 const corsOptions = {
-    origin: '*',
+    origin: "*",
     methods: ['GET', 'POST'],
 };
+app.use(bodyParser.json({ limit: '512mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '512mb' }));
 app.use((0, cors_1.default)(corsOptions));
 app.use(express_1.default.json());
+const upload = (0, multer_1.default)({
+    limits: {
+        fileSize: 1024 * 1024 * 512
+    }
+});
 const account = process.env.ACCOUNT_NAME || '';
 const containerName = process.env.CONTAINER || '';
 const accountKey = process.env.ACCOUNT_KEY || '';
@@ -46,15 +59,18 @@ function generateUniqueVaultCode() {
         return vaultCode;
     });
 }
-app.post('/upload', upload.array('files'), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+app.post('/gen-sas', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        if (!req.files || req.files.length === 0) {
-            return res.status(400).json({ error: 'No files uploaded' });
+        console.log(req.body);
+        const { duration } = req.body;
+        const fileNames = req.body.fileNames;
+        if (!fileNames || !Array.isArray(fileNames) || fileNames.length === 0) {
+            // console.log(fileNames)
+            return res.status(400).json({ error: "File names required" });
         }
         const password = req.body.password || '';
         const passwordHash = password ? yield bcrypt.hash(password, 10) : undefined;
         const vaultCode = yield generateUniqueVaultCode();
-        const duration = parseInt(req.body.duration);
         if (isNaN(duration) || duration < 5 || duration > 1440) {
             return res.status(400).json({ error: "Duration must be between 5 and 1440 minutes" });
         }
@@ -63,53 +79,66 @@ app.post('/upload', upload.array('files'), (req, res) => __awaiter(void 0, void 
         try {
             vault = yield Vault.create({
                 vaultCode,
-                passwordHash,
                 duration,
-                expireAt
+                expireAt,
+                passwordHash
             });
-            console.log("Response from creating vault", vault);
         }
         catch (err) {
-            console.error("Error adding vault info in mongodb", err);
-            return res.status(500).json({ error: "Error creating vault" });
+            res.status(500).json({ error: "Error adding vault in mongodb" });
         }
-        const uploadPromises = req.files.map((file) => __awaiter(void 0, void 0, void 0, function* () {
-            const blobName = file.originalname;
+        const sasTokens = yield Promise.all(fileNames.map((fileName) => __awaiter(void 0, void 0, void 0, function* () {
+            const blobName = `${Date.now()}-${fileName}`;
             const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-            const stream = file.buffer;
-            const permissions = new storage_blob_1.BlobSASPermissions();
-            permissions.read = true;
-            try {
-                yield blockBlobClient.uploadData(stream);
-                const sasToken = yield blockBlobClient.generateSasUrl({
-                    permissions,
-                    expiresOn: expireAt
-                });
-                try {
-                    const newFileVault = yield FileVault.create({
-                        vault_id: vault._id,
-                        vaultCode,
-                        fileName: blobName,
-                        fileURL: sasToken
-                    });
-                    console.log("Response from adding file in Vault", newFileVault);
-                }
-                catch (err) {
-                    console.error("Error adding file info in mongodb", err);
-                }
-                return { message: 'File uploaded successfully', fileName: blobName, url: sasToken, expiresAt: expireAt, success: true };
-            }
-            catch (uploadError) {
-                console.error(`Error uploading ${blobName}:`, uploadError);
-                return { message: `Error uploading ${blobName}: ${uploadError.message}`, fileName: blobName, success: false };
-            }
-        }));
-        const results = yield Promise.all(uploadPromises);
+            const sasToken = (0, storage_blob_1.generateBlobSASQueryParameters)({
+                containerName,
+                blobName,
+                permissions: storage_blob_1.BlobSASPermissions.parse("cw"),
+                expiresOn: expireAt,
+            }, sharedKeyCredential).toString();
+            yield FileVault.create({
+                vault_id: vault._id,
+                fileName: blobName,
+                fileURL: "",
+                pending: true,
+                expireAt
+            });
+            return { fileName: blobName, uploadUrl: `${blockBlobClient.url}?${sasToken}` };
+        })));
+        return res.status(201).json({ sasTokens, vaultCode });
+    }
+    catch (err) {
+        res.status(502).json({ error: "Error in generating SAS token: " + err });
+    }
+}));
+app.post('/confirm-upload', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { vaultCode } = req.body;
+        const vault = yield Vault.findOne({ vaultCode });
+        if (!vault) {
+            return res.status(404).json({ error: "Vault not found" });
+        }
+        const files = yield FileVault.find({ vault_id: vault._id });
+        const results = yield Promise.all(files.map((file) => __awaiter(void 0, void 0, void 0, function* () {
+            const blockBlobClient = containerClient.getBlockBlobClient(file.fileName);
+            const sasToken = (0, storage_blob_1.generateBlobSASQueryParameters)({
+                containerName,
+                blobName: file.fileName,
+                permissions: storage_blob_1.BlobSASPermissions.parse("r"),
+                expiresOn: new Date(Date.now() + vault.duration * 60 * 1000)
+            }, sharedKeyCredential).toString();
+            const url = `${blockBlobClient.url}?${sasToken}`;
+            yield FileVault.updateOne({ vault_id: vault._id, fileName: file.fileName }, { $set: { pending: false, fileURL: url } });
+            return {
+                fileName: file.fileName,
+                pending: false
+            };
+        })));
         res.status(200).json({ results, vaultCode });
     }
     catch (error) {
-        console.error("Upload error:", error);
-        res.status(500).json({ error: error.message });
+        console.error("Error confirming upload:", error);
+        res.status(500).json({ error: "Internal Server Error" });
     }
 }));
 app.post('/files', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -142,32 +171,26 @@ app.post('/files', (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     }
 }));
 app.get('/verify/:vaultCode', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    // try {
-    //     const { vaultCode } = req.params;
-    //     if (!vaultCode) {
-    //         return res.status(400).json({ error: "Missing vaultCode" }); 
-    //     }
-    //     const vault = await Vault.findOne({ vaultCode });
-    //     if (!vault) {
-    //         return res.status(404).json({ error: "Vault not found" })
-    //     } else {
-    //         return res.status(200).json({ ok: true })
-    //     }
-    // } catch (err) {
-    //     console.error("Error in /verify", err);
-    //     res.status(404)
-    // }
-    res.status(200).json("Reached path /verify/" + req.params.vaultCode + "!");
+    try {
+        const { vaultCode } = req.params;
+        if (!vaultCode) {
+            return res.status(400).json({ error: "Missing vaultCode" });
+        }
+        const vault = yield Vault.findOne({ vaultCode });
+        if (!vault) {
+            return res.status(404).json({ error: "Vault not found" });
+        }
+        else {
+            return res.status(200).json({ ok: true });
+        }
+    }
+    catch (err) {
+        console.error("Error in /verify", err);
+        res.status(404);
+    }
 }));
-app.get('/:vaultCode', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { vaultCode } = req.params;
-    const vault = yield Vault.findOne({ vaultCode });
-    if (!vault) {
-        return res.status(404).json({ error: "Vault not found" });
-    }
-    else {
-        return res.status(200).json({ ok: true });
-    }
+app.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    return res.status(200).json({ message: "CORS worked!" });
 }));
 const PORT = parseInt(process.env.PORT || '5001');
 app.listen(PORT, () => {
