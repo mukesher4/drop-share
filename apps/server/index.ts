@@ -6,15 +6,13 @@ import dotenv from 'dotenv';
 const bcrypt = require("bcrypt");
 const { connectDb, Vault, FileVault } = require('./config/dbConnection');
 import cors from 'cors';
-import { error } from 'console';
-import path from 'path';
 
 dotenv.config();
 connectDb();
 
 const app = express();
 
-// ["https://dropshare-ten.vercel.app", "https://dropshare-mukesh-rs-projects.vercel.app", "https://dropshare-git-main-mukesh-rs-projects.vercel.app"]
+["http://localhost:3000", "https://dropshare-ten.vercel.app", "https://dropshare-mukesh-rs-projects.vercel.app", "https://dropshare-git-main-mukesh-rs-projects.vercel.app"]
 
 const corsOptions = {
     origin: "*", 
@@ -26,22 +24,12 @@ app.use(bodyParser.urlencoded({ extended: true, limit: '512mb' }));
 
 app.use(cors(corsOptions));
 app.use(express.json())
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-      cb(null, 'uploads/'); 
-    },
-    filename: function (req, file, cb) {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname)); // Set the filename
+
+const upload = multer({ 
+    limits: { 
+        fileSize: 1024 * 1024 * 512
     }
-  });
-  
-  const upload = multer({ 
-      limits: { 
-          fileSize: 1024 * 1024 * 512
-      },
-      storage: storage 
-  });
+}); 
 
 
 const account: string = process.env.ACCOUNT_NAME || '';
@@ -75,16 +63,14 @@ async function generateUniqueVaultCode() {
   return vaultCode;
 }
 
-app.post('/gen-sas', upload.array('files'), async(req: any, res: any) => {
+app.post('/gen-sas', async(req: any, res: any) => {
     try {
-        // file array, duration, vaultcode, expireat, passwordhash
+        const { fileNames, duration } = req.body;
 
-        if (!req.files || req.files.length === 0) {
-            return res.status(400).json({ error: 'No files uploaded' })
+        if (!fileNames || !Array.isArray(fileNames) || fileNames.length === 0) {
+            return res.status(400).json({ error: "File names required" });
         }
 
-        const files = req.files
-        const { duration } = req.body;
         const password =  req.body.password || ''
         const passwordHash = password ? await bcrypt.hash(password, 10) : undefined
         const vaultCode = await generateUniqueVaultCode();
@@ -95,8 +81,9 @@ app.post('/gen-sas', upload.array('files'), async(req: any, res: any) => {
 
         const expireAt = new Date(Date.now() + duration*60*1000)
 
+        let vault: any;
         try {
-            const vault = await Vault.create({
+            vault = await Vault.create({
                 vaultCode,
                 duration, 
                 expireAt,
@@ -106,8 +93,8 @@ app.post('/gen-sas', upload.array('files'), async(req: any, res: any) => {
             res.status(500).json({ error: "Error adding vault in mongodb" })
         }
 
-        const sasTokens = await Promise.all(files.map(async (file: { originalname: string; })=>{
-            const blobName = `${Date.now()}-${file.originalname}`
+        const sasTokens = await Promise.all(fileNames.map(async (fileName: string)=>{
+            const blobName = `${Date.now()}-${fileName}`
             const blockBlobClient = containerClient.getBlockBlobClient(blobName)
 
             const sasToken = generateBlobSASQueryParameters({
@@ -117,6 +104,13 @@ app.post('/gen-sas', upload.array('files'), async(req: any, res: any) => {
                 expiresOn: expireAt
             }, sharedKeyCredential).toString();
 
+            await FileVault.create({
+                vault_id: vault._id,
+                fileName: blobName,
+                fileURL: "",
+                pending: true,
+            });
+
             return { fileName: blobName, uploadUrl: `${blockBlobClient.url}?${sasToken}` };
         }))
 
@@ -124,6 +118,46 @@ app.post('/gen-sas', upload.array('files'), async(req: any, res: any) => {
 
     } catch (err) {
         res.status(502).json({ error: "Error in generating SAS token" })
+    }
+})
+
+app.post('confirm-upload', async (req: any, res: any) => {
+    try {
+        const { vaultCode } = req.body;
+        const vault = await Vault.findOne({ vaultCode });
+
+        if (!vault) {
+            return res.status(404).json({ error: "Vault not found" });
+        }
+
+        const files = await FileVault.find({ vaultCode });
+
+        const results = await Promise.all(files.map(async (file: { fileName: string; }) => {
+            const blockBlobClient = containerClient.getBlockBlobClient(file.fileName);
+
+            const sasToken = generateBlobSASQueryParameters({
+                containerName,
+                blobName: file.fileName,
+                permissions: BlobSASPermissions.parse("r"), 
+                expiresOn: new Date(Date.now() + 24 * 60 * 60 * 1000) 
+            }, sharedKeyCredential).toString();
+
+            const url = `${blockBlobClient.url}?${sasToken}`
+
+            await FileVault.update({ vaultCode, fileName: file.fileName }, { $set: { pending: false, fileUrl:  url} });
+
+            return {
+                fileName: file.fileName,
+                url,
+                success: true
+            };
+        }));
+
+        res.status(200).json({ results, vaultCode });
+
+    } catch (error) {
+        console.error("Error confirming upload:", error);
+        res.status(500).json({ error: "Internal Server Error" });
     }
 })
 

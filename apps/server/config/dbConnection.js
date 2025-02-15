@@ -37,6 +37,7 @@ const vaultSchema = new mongoose.Schema({
     }
 });
 const Vault = mongoose.model("Vault", vaultSchema);
+
 const fileVaultSchema = new mongoose.Schema({
     vault_id: {
         type: mongoose.Schema.Types.ObjectId,
@@ -51,6 +52,10 @@ const fileVaultSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    pending: {
+        type: Boolean,
+        required: true
+    }
 });
 const FileVault = mongoose.model("FileVault", fileVaultSchema);
 module.exports = { connectDb, Vault, FileVault };
