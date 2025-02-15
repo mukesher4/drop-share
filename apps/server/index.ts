@@ -12,12 +12,17 @@ connectDb();
 
 const app = express();
 
-
+[
+    "http://localhost:3000",
+    "https://dropshare-ten.vercel.app",
+    "https://dropshare-mukesh-rs-projects.vercel.app",
+    "https://dropshare-git-main-mukesh-rs-projects.vercel.app"
+  ]
 
 const corsOptions = {
-    origin: ["http://localhost:3000", "https://dropshare-ten.vercel.app", "https://dropshare-mukesh-rs-projects.vercel.app", "https://dropshare-git-main-mukesh-rs-projects.vercel.app"], 
-    methods: ['GET', 'POST'], 
-};
+    origin: "*",
+    methods: ['GET', 'POST'],
+  };
 
 app.use(bodyParser.json({ limit: '512mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '512mb' }));
