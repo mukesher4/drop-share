@@ -21,6 +21,27 @@ import {
   CardContent,
 } from "@/components/ui/card"
 
+interface Result {
+  fileName: string;
+  uploadUrl: string;
+}
+
+interface ResponseData {
+  sasTokens: Result[];
+  vaultCode: string;
+}    
+
+interface ReadFile {
+  fileName: string;
+  url: string;
+  success: boolean;
+}
+
+interface ReadFileResponse {
+  results: ReadFile[];
+  vaultCode: string
+}
+
 export default function New() {
   const router = useRouter(); 
 
@@ -67,52 +88,50 @@ export default function New() {
   } 
 
   const postFiles = async () => {
-    const formData = new FormData();
-
-    for (const file of files) {
-      formData.append("files", file.name)
+    interface Body {
+      duration: string;
+      password: string;
+      fileNames: string[];
     }
 
-    formData.append("duration", (durationData[duration]).toString())
+    const body : Body = {
+      duration: (durationData[duration]).toString(),
+      password: isPass ? password : '',
+      fileNames: []
+    }
 
-    if (isPass) {
-      formData.append("password", password)
+    for (const file of files) {
+      body.fileNames.push(file.name)
     }
 
     try {
-      // fetch /gen-sas for upload url
       const response = await fetch(`${URL}/gen-sas`, {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
       })
       if (!response.ok) {
         const errorData = await response.json()
         const errorMessage = errorData.error || 'Error in fetching server'
         throw new Error(errorMessage)
-      } 
-
-      interface Result {
-        message: string; 
-        fileName: string;
-        url: string;
-      }
-
-      interface ResponseData {
-        results: Result[];
-        vaultCode: string;
-      }      
+      }   
 
       const data = await response.json() as ResponseData
+
+      console.log("data: " + JSON.stringify(data))
+
       const { vaultCode } = data
-      const results = data.results as Result[]
+      const results = data.sasTokens as Result[]
 
       await Promise.all(files.map(async (file, index) => {
-        const { fileName, url } = results[index];
+        const { fileName, uploadUrl } = results[index];
 
-        await fetch(url, {
-            method: "PUT",
-            body: file,
-            headers: { "x-ms-blob-type": "BlockBlob" }
+        await fetch(uploadUrl, {
+          method: "PUT",
+          headers: new Headers({
+            "x-ms-blob-type": "BlockBlob",
+          }),
+          body: file,
         });
     }));
 
@@ -123,20 +142,9 @@ export default function New() {
     });
 
     if (!readFileResponse.ok) {
-      const errorData = await response.json()
+      const errorData = await readFileResponse.json()
       const errorMessage = errorData.error || 'Error in fetching server'
       throw new Error(errorMessage)      
-    }
-
-    interface ReadFile {
-      fileName: string;
-      url: string;
-      success: boolean;
-    }
-
-    interface ReadFileResponse {
-      results: ReadFile[];
-      vaultCode: string
     }
 
     const readData = await readFileResponse.json() as ReadFileResponse
@@ -147,42 +155,6 @@ export default function New() {
       console.error("Error in fetching server", err)
     }
   } 
-  //   const formData = new FormData();
-
-  //   for (const file of files) {
-  //       formData.append("files", file); 
-  //   }
-
-  //   formData.append("duration", (durationData[duration]).toString());
-
-  //   if (isPass) {
-  //     formData.append("password", password)
-  //   }
-
-  //   try {
-  //     const response = await fetch(`${URL}/upload`, {
-  //         method: "POST",
-  //         body: formData,
-  //     });
-
-  //     if (!response.ok) {
-  //         const errorData = await response.json();
-  //         const errorMessage = errorData.error || `HTTP error! status: ${response.status}`;
-  //         throw new Error(errorMessage);
-  //     }
-
-  //     const data = await response.json();
-  //     return data;
-
-  // } catch (error) {
-  //     console.error("Error uploading files:", error);    
-  //     toast.error("Error uploading files")
-  //     setIsLoader(false)
-  //     setFiles([])
-      
-  // }
-
-  // }
 
   const [loader, setIsLoader] = useState<boolean>(false)
 

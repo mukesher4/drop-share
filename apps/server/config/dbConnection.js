@@ -29,7 +29,8 @@ const vaultSchema = new mongoose.Schema({
     },
     expireAt: {
         type: Date,
-        expires: '1m'
+        expires: '1m',
+        required: true
     },
     duration: {
         type: Number,
@@ -49,13 +50,17 @@ const fileVaultSchema = new mongoose.Schema({
         required: true
     },
     fileURL: {
-        type: String,
-        required: true
+        type: String
     },
     pending: {
         type: Boolean,
         required: true
-    }
+    },
+    expireAt: {
+        type: Date,
+        expires: '1m',
+        required: true
+    },
 });
 const FileVault = mongoose.model("FileVault", fileVaultSchema);
 module.exports = { connectDb, Vault, FileVault };
