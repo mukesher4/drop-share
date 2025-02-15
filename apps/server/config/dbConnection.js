@@ -49,7 +49,6 @@ const fileVaultSchema = new mongoose.Schema({
     },
     fileURL: {
         type: String,
-        required: true
     },
 });
 const FileVault = mongoose.model("FileVault", fileVaultSchema);

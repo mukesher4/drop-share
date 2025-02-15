@@ -12,17 +12,12 @@ connectDb();
 
 const app = express();
 
-[
-    "http://localhost:3000",
-    "https://dropshare-ten.vercel.app",
-    "https://dropshare-mukesh-rs-projects.vercel.app",
-    "https://dropshare-git-main-mukesh-rs-projects.vercel.app"
-  ]
+// ["http://localhost:3000", "https://dropshare-ten.vercel.app", "https://dropshare-mukesh-rs-projects.vercel.app", "https://dropshare-git-main-mukesh-rs-projects.vercel.app"]
 
 const corsOptions = {
-    origin: "*",
-    methods: ['GET', 'POST'],
-  };
+    origin: "*", 
+    methods: ['GET', 'POST'], 
+};
 
 app.use(bodyParser.json({ limit: '512mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '512mb' }));
@@ -76,7 +71,6 @@ app.post('/gen-sas', async(req: any, res: any) => {
         const fileNames = req.body.fileNames
 
         if (!fileNames || !Array.isArray(fileNames) || fileNames.length === 0) {
-            // console.log(fileNames)
             return res.status(400).json({ error: "File names required" });
         }
 
