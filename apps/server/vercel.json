@@ -1,16 +1,10 @@
 {
-    "version": 2,
-    "builds": [
-      { "src": "index.ts", "use": "@vercel/node" }
-    ],
-    "rewrites": 
-    [
-        { "source": "/(.*)", "destination": "/" }
-    ],
-    "functions": {
-    "api/upload": {
-      "maxDuration": 30,
-      "memory": 512
-    }
-  }
+  "version": 2,
+  "builds": [
+    { "src": "index.ts", "use": "@vercel/node" }
+  ],
+  "rewrites": 
+  [
+      { "source": "/(.*)", "destination": "/" }
+  ]
 }

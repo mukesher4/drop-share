@@ -1,11 +1,13 @@
-import express, { Request } from 'express';
+import express, { Request, Response } from 'express';
 const bodyParser = require('body-parser');
 import multer from 'multer';
-import { BlobServiceClient, BlobSASPermissions, StorageSharedKeyCredential } from '@azure/storage-blob';
+import { BlobServiceClient, BlobSASPermissions, StorageSharedKeyCredential, generateBlobSASQueryParameters } from '@azure/storage-blob';
 import dotenv from 'dotenv';
 const bcrypt = require("bcrypt");
 const { connectDb, Vault, FileVault } = require('./config/dbConnection');
 import cors from 'cors';
+import { error } from 'console';
+import path from 'path';
 
 dotenv.config();
 connectDb();
@@ -24,12 +26,22 @@ app.use(bodyParser.urlencoded({ extended: true, limit: '512mb' }));
 
 app.use(cors(corsOptions));
 app.use(express.json())
-
-const upload = multer({ 
-    limits: { 
-        fileSize: 1024 * 1024 * 512
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+      cb(null, 'uploads/'); 
+    },
+    filename: function (req, file, cb) {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname)); // Set the filename
     }
-}); 
+  });
+  
+  const upload = multer({ 
+      limits: { 
+          fileSize: 1024 * 1024 * 512
+      },
+      storage: storage 
+  });
 
 
 const account: string = process.env.ACCOUNT_NAME || '';
@@ -63,6 +75,57 @@ async function generateUniqueVaultCode() {
   return vaultCode;
 }
 
+app.post('/gen-sas', upload.array('files'), async(req: any, res: any) => {
+    try {
+        // file array, duration, vaultcode, expireat, passwordhash
+
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({ error: 'No files uploaded' })
+        }
+
+        const files = req.files
+        const { duration } = req.body;
+        const password =  req.body.password || ''
+        const passwordHash = password ? await bcrypt.hash(password, 10) : undefined
+        const vaultCode = await generateUniqueVaultCode();
+
+        if (isNaN(duration) || duration < 5 || duration > 1440) {
+            return res.status(400).json({ error: "Duration must be between 5 and 1440 minutes" });
+        }
+
+        const expireAt = new Date(Date.now() + duration*60*1000)
+
+        try {
+            const vault = await Vault.create({
+                vaultCode,
+                duration, 
+                expireAt,
+                passwordHash
+            })
+        } catch (err) {
+            res.status(500).json({ error: "Error adding vault in mongodb" })
+        }
+
+        const sasTokens = await Promise.all(files.map(async (file: { originalname: string; })=>{
+            const blobName = `${Date.now()}-${file.originalname}`
+            const blockBlobClient = containerClient.getBlockBlobClient(blobName)
+
+            const sasToken = generateBlobSASQueryParameters({
+                containerName,
+                blobName,
+                permissions: BlobSASPermissions.parse("w"),
+                expiresOn: expireAt
+            }, sharedKeyCredential).toString();
+
+            return { fileName: blobName, uploadUrl: `${blockBlobClient.url}?${sasToken}` };
+        }))
+
+        return res.status(201).json({ sasTokens, vaultCode })
+
+    } catch (err) {
+        res.status(502).json({ error: "Error in generating SAS token" })
+    }
+})
 
 app.post('/upload', upload.array('files'), async (req: any, res: any) => {
     try {
