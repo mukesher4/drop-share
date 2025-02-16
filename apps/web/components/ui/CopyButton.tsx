@@ -9,7 +9,7 @@ const CopyButton: React.FC<{ vaultCode: string }> = ({ vaultCode }) => {
     const handleCopy = (e: React.MouseEvent<SVGSVGElement>) => {
         e.preventDefault(); 
         try {
-          navigator.clipboard.writeText(vaultCode)
+          navigator.clipboard.writeText(`${URL}/${vaultCode}`)
             .then(() => {
               toast.success("Vault code copied!");
             })
