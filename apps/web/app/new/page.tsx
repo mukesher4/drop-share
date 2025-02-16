@@ -14,7 +14,7 @@ import { Trash, Loader2, Upload } from "lucide-react"
 import { useRouter } from "next/navigation";
 import { toast } from "sonner"
 
-import { URL } from "@/app/constants"
+import { BASE_URL } from "@/app/constants"
 
 import {
   Card,
@@ -105,7 +105,7 @@ export default function New() {
     }
 
     try {
-      const response = await fetch(`${URL}/gen-sas`, {
+      const response = await fetch(`${BASE_URL}/gen-sas`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -133,7 +133,7 @@ export default function New() {
         });
     }));
 
-    const readFileResponse = await fetch(`${URL}/confirm-upload`, {
+    const readFileResponse = await fetch(`${BASE_URL}/confirm-upload`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ vaultCode  }),
