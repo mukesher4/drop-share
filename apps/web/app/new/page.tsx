@@ -118,8 +118,6 @@ export default function New() {
 
       const data = await response.json() as ResponseData
 
-      console.log("data: " + JSON.stringify(data))
-
       const { vaultCode } = data
       const results = data.sasTokens as Result[]
 
@@ -167,7 +165,6 @@ export default function New() {
       vaultCode = res.vaultCode
       let success = true
       for (const file of res.results) {
-        console.log(file.url)
         if (file.success===false) {
           success = false
           break

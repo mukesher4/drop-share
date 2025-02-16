@@ -167,9 +167,7 @@ app.post('/confirm-upload', async (req: any, res: any) => {
 app.post('/files', async (req: any, res: any) => {
     try {
         const { vaultCode, password } = req.body;
-        console.log(vaultCode, password)
         const vault = await Vault.findOne({ vaultCode });
-        console.log(vault)
         if (!vault) {
             return res.status(404).json({ error: 'Vault not found', passwordMissing: false });
         }

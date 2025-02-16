@@ -45,8 +45,17 @@ const fileVaultSchema = new mongoose.Schema({
 	},
     fileURL: {
         type: String,
-        required: true
+        // required: true
     },
+	expireAt: {
+		type: Date,
+		expires: '1m'
+	},
+	pending: {
+		type: String,
+		require: true
+	}
+
 })
 
 const FileVault = mongoose.model("FileVault", fileVaultSchema)
