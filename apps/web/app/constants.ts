@@ -1,2 +1,1 @@
-export const URL='https://dropshare-server.vercel.app'
-// export const URL='http://localhost:5001'
+export const BASE_URL='https://dropshare-server.vercel.app'
