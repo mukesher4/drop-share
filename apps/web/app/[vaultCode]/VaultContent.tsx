@@ -9,7 +9,7 @@ import { Lock, Loader2 } from 'lucide-react';
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
-import { URL } from "@/app/constants";
+import { BASE_URL } from "@/app/constants";
 
 
 interface FileObject {
@@ -52,7 +52,7 @@ export default function VaultContent({ vaultCode }: { vaultCode: string }) {
         })
       };
 
-      const res = await fetch(`${URL}/files`, options);
+      const res = await fetch(`${BASE_URL}/files`, options);
       if (!res.ok) {
         const errData = await res.json();
         throw new Error(errData.error || `HTTP error! status: ${res.status}`);
@@ -95,7 +95,7 @@ export default function VaultContent({ vaultCode }: { vaultCode: string }) {
         })
       };
 
-      const res = await fetch(`${URL}/files`, options);
+      const res = await fetch(`${BASE_URL}/files`, options);
       if (!res.ok) {
         const errData = await res.json();
         throw new Error(errData.error || `HTTP error! status: ${res.status}`);
