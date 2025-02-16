@@ -12,11 +12,10 @@ connectDb();
 
 const app = express();
 
-// ["http://localhost:3000", "https://dropshare-ten.vercel.app", "https://dropshare-mukesh-rs-projects.vercel.app", "https://dropshare-git-main-mukesh-rs-projects.vercel.app"]
 
 const corsOptions = {
-    origin: "*", 
-    methods: ['GET', 'POST'], 
+    origin: ["http://localhost:3000", "https://dropshare-ten.vercel.app", "https://dropshare-mukesh-rs-projects.vercel.app", "https://dropshare-git-main-mukesh-rs-projects.vercel.app"], 
+    methods: ['GET', 'POST', 'PUT'], 
 };
 
 app.use(bodyParser.json({ limit: '512mb' }));
@@ -65,7 +64,6 @@ async function generateUniqueVaultCode() {
 
 app.post('/gen-sas', async(req: any, res: any) => {
     try {
-        console.log(req.body)
         const { duration } = req.body;
 
         const fileNames = req.body.fileNames
@@ -143,12 +141,16 @@ app.post('/confirm-upload', async (req: any, res: any) => {
                 containerName,
                 blobName: file.fileName,
                 permissions: BlobSASPermissions.parse("r"), 
-                expiresOn: new Date(Date.now() + vault.duration * 60 * 1000) 
+                expiresOn: vault.expireAt 
             }, sharedKeyCredential).toString();
 
             const url = `${blockBlobClient.url}?${sasToken}`
 
             await FileVault.updateOne({ vault_id: vault._id, fileName: file.fileName }, { $set: { pending: false, fileURL:  url} });
+
+            await blockBlobClient.setHTTPHeaders({
+                blobContentDisposition: `attachment; filename="${(file.fileName).split('-').slice(1).join('-')}"`
+            });
 
             return {
                 fileName: file.fileName,
