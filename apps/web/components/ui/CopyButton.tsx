@@ -5,6 +5,8 @@ import { Copy } from 'lucide-react';
 
 import { toast } from "sonner"
 
+import { BASE_URL } from "@/app/constants";
+
 const CopyButton: React.FC<{ vaultCode: string }> = ({ vaultCode }) => {
     const handleCopy = (e: React.MouseEvent<SVGSVGElement>) => {
         e.preventDefault(); 
