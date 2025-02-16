@@ -59,6 +59,7 @@ export default function VaultContent({ vaultCode }: { vaultCode: string }) {
       }
       const response: FileResponse = await res.json();
       if (!response?.passwordMissing) {
+        toast.success("Vaild password")
         setVaildAuth(true)
       }      
     } catch (err) {
