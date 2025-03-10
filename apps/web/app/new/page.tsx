@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 import React from "react"
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 
 import DurationCounter from "@/components/ui/duration-counter"
-import { Trash, Loader2, Upload } from "lucide-react"
+import { Trash, Loader2, Upload, Clock } from "lucide-react"
 
 import { useRouter } from "next/navigation";
 import { toast } from "sonner"
@@ -49,9 +49,62 @@ export default function New() {
   const [files, setFiles] = useState<File[]>([])
   const [isPass, setIsPass] = useState<boolean>(false)
   const [password, setPassword] = useState<string>('')
+  const [uploadEta, setUploadEta] = useState<number | null>(null)
+  const [isUploading, setIsUploading] = useState<boolean>(false)
+  
+  // Timer reference for cleanup
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   const durationData: number[] = [5, 15, 30, 60, 180, 360, 720, 1440]
   let vaultCode = ''
+
+  // Upload rate in MB per second (0.5 Mbps = 0.0625 MB/s)
+  const UPLOAD_RATE = 0.5;
+
+  // Cleanup timer on component unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
+
+  // Calculate total file size in MB
+  const calculateTotalSize = () => {
+    let totalSize = 0;
+    files.forEach(file => {
+      totalSize += file.size;
+    });
+    return totalSize / (1024 * 1024); // Convert bytes to MB
+  };
+
+  // Calculate initial ETA based on file size and upload rate
+  const calculateInitialEta = () => {
+    const totalSizeMB = calculateTotalSize();
+    return Math.ceil(totalSizeMB / UPLOAD_RATE);
+  };
+
+  // Update ETA every 3 seconds
+  const startEtaTimer = (initialEta: number) => {
+    let remainingSeconds = initialEta;
+    setUploadEta(remainingSeconds);
+    
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+    
+    timerRef.current = setInterval(() => {
+      remainingSeconds -= Math.ceil(Math.random()*3); 
+      
+      // If ETA reaches 0 but upload is still in progress, keep showing 0
+      if (remainingSeconds <= 0) {
+        setUploadEta(0);
+      } else {
+        setUploadEta(remainingSeconds);
+      }
+    }, 3000); // Update every 3 seconds
+  };
 
   function onClick(change: number) {
     setDuration(Math.max(0, Math.min(7, duration + change)))
@@ -121,6 +174,11 @@ export default function New() {
       const { vaultCode } = data
       const results = data.sasTokens as Result[]
 
+      // Start upload process
+      setIsUploading(true);
+      const initialEta = calculateInitialEta();
+      startEtaTimer(initialEta);
+
       await Promise.all(files.map(async (file, index) => {
         const { uploadUrl } = results[index];
 
@@ -131,25 +189,38 @@ export default function New() {
           }),
           body: file,
         });
-    }));
+      }));
 
-    const readFileResponse = await fetch(`${BASE_URL}/confirm-upload`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ vaultCode  }),
-    });
+      // Upload completed
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      setIsUploading(false);
+      setUploadEta(null);
 
-    if (!readFileResponse.ok) {
-      const errorData = await readFileResponse.json()
-      const errorMessage = errorData.error || 'Error in fetching server'
-      throw new Error(errorMessage)      
-    }
+      const readFileResponse = await fetch(`${BASE_URL}/confirm-upload`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vaultCode }),
+      });
 
-    const readData = await readFileResponse.json() as ReadFileResponse
+      if (!readFileResponse.ok) {
+        const errorData = await readFileResponse.json()
+        const errorMessage = errorData.error || 'Error in fetching server'
+        throw new Error(errorMessage)      
+      }
 
-    return readData
+      const readData = await readFileResponse.json() as ReadFileResponse
+
+      return readData
 
     } catch (err) {
+      // Clear timer and reset upload status on error
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      setIsUploading(false);
+      setUploadEta(null);
       console.error("Error in fetching server", err)
     }
   } 
@@ -179,6 +250,20 @@ export default function New() {
         toast.error("Error creating vault")
         setFiles([])
       }
+    }
+  };
+
+  // Format seconds to show ETA
+  const formatEta = (seconds: number) => {
+    if (seconds <= 0) return "0 sec";
+    
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    
+    if (minutes > 0) {
+      return `${minutes} min ${remainingSeconds} sec`;
+    } else {
+      return `${remainingSeconds} sec`;
     }
   };
 
@@ -234,11 +319,16 @@ export default function New() {
                     <ScrollBar orientation="vertical" />
                   </ScrollArea>
 
-                  {loader && ( 
-                    <div className="absolute inset-0 flex items-center justify-center bg-transparent">
+                  {loader && isUploading && ( 
+                    <div className="absolute inset-0 flex flex-col gap-8 items-center justify-center bg-transparent">
                       <Loader2 className="h-8 w-8 animate-spin" />
+                        <div className="flex items-center justify-center gap-2 text-sm">
+                          <Clock className="w-4 h-4" />
+                          <span>Estimated upload time: {formatEta(uploadEta)}</span>
+                        </div>
                     </div>
                   )}
+
                 </div>
               }
             </Card>
