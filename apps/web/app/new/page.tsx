@@ -404,7 +404,6 @@ export default function New() {
                           <div className="flex flex-row items-center w-full pr-2">
                             <div className="text-left text-sm w-[400px] truncate">
                               {file.name}
-                              {isPass && <span className="text-xs ml-1 text-blue-500">(will be encrypted)</span>}
                             </div>
                             <Trash
                               onClick={() => handleDelete(idx)}
