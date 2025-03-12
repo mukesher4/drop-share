@@ -414,8 +414,7 @@ export default function New() {
                     </div>
                     <ScrollBar orientation="vertical" />
                   </ScrollArea>
-                  
-                  {loader && (isUploading || isEncrypting) && ( 
+                  {loader && ( 
                     <div className="absolute inset-0 flex flex-col gap-8 items-center justify-center bg-transparent">
                       <Loader2 className="h-8 w-8 animate-spin" />
                       {isEncrypting ? (
@@ -423,10 +422,14 @@ export default function New() {
                           <Lock className="w-4 h-4" />
                           <span>Encrypting files...</span>
                         </div>
-                      ) : (
+                      ) : isUploading ? (
                         <div className="flex items-center justify-center gap-2 text-sm">
                           <Clock className="w-4 h-4" />
                           <span>Estimated upload time: {uploadEta !== null ? formatEta(uploadEta) : '0 sec'}</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center gap-2 text-sm">
+                          <span>Uploading...</span>
                         </div>
                       )}
                     </div>
