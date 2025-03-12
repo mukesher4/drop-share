@@ -9,7 +9,7 @@ import React from "react"
 import { useState, useEffect, useRef } from "react"
 
 import DurationCounter from "@/components/ui/duration-counter"
-import { Trash, Loader2, Upload, Clock } from "lucide-react"
+import { Trash, Loader2, Upload, Clock, Lock } from "lucide-react"
 
 import { useRouter } from "next/navigation";
 import { toast } from "sonner"
@@ -51,6 +51,7 @@ export default function New() {
   const [password, setPassword] = useState<string>('')
   const [uploadEta, setUploadEta] = useState<number | null>(null)
   const [isUploading, setIsUploading] = useState<boolean>(false)
+  const [isEncrypting, setIsEncrypting] = useState<boolean>(false)
   
   // Timer reference for cleanup
   const timerRef = useRef<NodeJS.Timeout | null>(null)
@@ -140,21 +141,107 @@ export default function New() {
     setFiles(prevFiles => prevFiles.filter((_, i) => idx !== i ))
   } 
 
+  // Encryption utilities
+  const generateEncryptionKey = async (password: string): Promise<CryptoKey> => {
+    // Convert password to a key using PBKDF2
+    const encoder = new TextEncoder();
+    const passwordData = encoder.encode(password);
+    
+    // Create a salt
+    const salt = new Uint8Array([
+      0x63, 0x72, 0x79, 0x70, 0x74, 0x6f, 0x73, 0x61,
+      0x6c, 0x74, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x73
+    ]);
+    
+    // Import the password as a key
+    const importedKey = await crypto.subtle.importKey(
+      'raw',
+      passwordData,
+      { name: 'PBKDF2' },
+      false,
+      ['deriveKey']
+    );
+    
+    // Derive a key for AES-GCM
+    return crypto.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt,
+        iterations: 100000,
+        hash: 'SHA-256'
+      },
+      importedKey,
+      { name: 'AES-GCM', length: 256 },
+      true,
+      ['encrypt']
+    );
+  };
+
+  const encryptFile = async (file: File, key: CryptoKey): Promise<{ encryptedFile: Blob, iv: Uint8Array }> => {
+    // Generate a random IV
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    
+    // Read the file as ArrayBuffer
+    const fileBuffer = await file.arrayBuffer();
+    
+    // Encrypt the file
+    const encryptedBuffer = await crypto.subtle.encrypt(
+      {
+        name: 'AES-GCM',
+        iv
+      },
+      key,
+      fileBuffer
+    );
+    
+    // Combine IV and encrypted data (IV needs to be stored for decryption)
+    const encryptedFile = new Blob([iv, encryptedBuffer], { type: 'application/encrypted' });
+    
+    return { encryptedFile, iv };
+  };
+
+  const encryptFiles = async (files: File[], encryptionPassword: string): Promise<File[]> => {
+    // If there's no password, return the original files
+    if (!encryptionPassword) {
+      return files;
+    }
+    
+    // Generate encryption key from password
+    const key = await generateEncryptionKey(encryptionPassword);
+    
+    // Encrypt each file
+    const encryptedFiles = await Promise.all(files.map(async (file) => {
+      const { encryptedFile } = await encryptFile(file, key);
+      
+      // Create a new File object with the encrypted content
+      return new File([encryptedFile], `${file.name}.encrypted`, {
+        type: 'application/encrypted',
+        lastModified: new Date().getTime()
+      });
+    }));
+    
+    return encryptedFiles;
+  };
+
   const postFiles = async () => {
     interface Body {
       duration: string;
       password: string;
       fileNames: string[];
+      encrypted: boolean;
     }
+
+    // Prepare file names for upload
+    const fileNames = files.map(file => {
+      // If encryption is enabled, add .encrypted extension
+      return isPass ? `${file.name}.encrypted` : file.name;
+    });
 
     const body : Body = {
       duration: (durationData[duration]).toString(),
       password: isPass ? password : '',
-      fileNames: []
-    }
-
-    for (const file of files) {
-      body.fileNames.push(file.name)
+      fileNames: fileNames,
+      encrypted: isPass // Indicate to server that files are encrypted
     }
 
     try {
@@ -174,12 +261,20 @@ export default function New() {
       const { vaultCode } = data
       const results = data.sasTokens as Result[]
 
+      // If password is set, encrypt files before uploading
+      let filesToUpload = files;
+      if (isPass) {
+        setIsEncrypting(true);
+        filesToUpload = await encryptFiles(files, password);
+        setIsEncrypting(false);
+      }
+
       // Start upload process
       setIsUploading(true);
       const initialEta = calculateInitialEta();
       startEtaTimer(initialEta);
 
-      await Promise.all(files.map(async (file, index) => {
+      await Promise.all(filesToUpload.map(async (file, index) => {
         const { uploadUrl } = results[index];
 
         await fetch(uploadUrl, {
@@ -221,6 +316,7 @@ export default function New() {
       }
       setIsUploading(false);
       setUploadEta(null);
+      setIsEncrypting(false);
       console.error("Error in fetching server", err)
     }
   } 
@@ -230,6 +326,8 @@ export default function New() {
   const handleCreate = async () => {
     if (files.length === 0) {
       toast.error("Please provide files");
+    } else if (isPass && password.length < 8) {
+      toast.error("Password must be at least 8 characters for encryption");
     } else {
       setIsLoader(true)
       const res = await postFiles()
@@ -244,7 +342,7 @@ export default function New() {
 
       if (success===true) {
         setIsLoader(false)
-        toast.success("Vault created successfully")
+        toast.success(`Vault created ${isPass ? 'with encryption' : ''} successfully`)
         router.push(`/${vaultCode}`);
       } else {
         toast.error("Error creating vault")
@@ -306,6 +404,7 @@ export default function New() {
                           <div className="flex flex-row items-center w-full pr-2">
                             <div className="text-left text-sm w-[400px] truncate">
                               {file.name}
+                              {isPass && <span className="text-xs ml-1 text-blue-500">(will be encrypted)</span>}
                             </div>
                             <Trash
                               onClick={() => handleDelete(idx)}
@@ -319,13 +418,20 @@ export default function New() {
                     <ScrollBar orientation="vertical" />
                   </ScrollArea>
 
-                  {loader && isUploading && ( 
+                  {loader && (isUploading || isEncrypting) && ( 
                     <div className="absolute inset-0 flex flex-col gap-8 items-center justify-center bg-transparent">
                       <Loader2 className="h-8 w-8 animate-spin" />
+                      {isEncrypting ? (
+                        <div className="flex items-center justify-center gap-2 text-sm">
+                          <Lock className="w-4 h-4" />
+                          <span>Encrypting files...</span>
+                        </div>
+                      ) : (
                         <div className="flex items-center justify-center gap-2 text-sm">
                           <Clock className="w-4 h-4" />
-                          <span>Estimated upload time: {formatEta(uploadEta)}</span>
+                          <span>Estimated upload time: {uploadEta !== null ? formatEta(uploadEta) : '0 sec'}</span>
                         </div>
+                      )}
                     </div>
                   )}
 
