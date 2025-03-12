@@ -326,8 +326,6 @@ export default function New() {
   const handleCreate = async () => {
     if (files.length === 0) {
       toast.error("Please provide files");
-    } else if (isPass && password.length < 8) {
-      toast.error("Password must be at least 8 characters for encryption");
     } else {
       setIsLoader(true)
       const res = await postFiles()
