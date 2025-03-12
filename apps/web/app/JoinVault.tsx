@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { URL } from "@/app/constants";
+import { BASE_URL } from "@/app/constants";
 import { useRouter } from 'next/navigation'; 
 import { useState } from 'react'; 
 
@@ -22,14 +22,14 @@ export default function JoinVault() {
           'Content-Type': 'application/json'
         }
       }
-      fetch(`${URL}/verify/${vaultCode}`, options)
+      fetch(`${BASE_URL}/verify/${vaultCode}`, options)
         .then(res => {
           if (res.ok) {
             toast.success("Vault found");
             router.push(`/${vaultCode}`); 
           } else { toast.error("Vault not found") }
         })
-        .catch(err => { console.error(`${URL}/verify/${vaultCode}`, err) });
+        .catch(err => { console.error(`${BASE_URL}/verify/${vaultCode}`, err) });
     };
   
     return (
