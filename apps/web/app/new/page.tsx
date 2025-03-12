@@ -414,8 +414,8 @@ export default function New() {
                     </div>
                     <ScrollBar orientation="vertical" />
                   </ScrollArea>
-
-                  {loader && ( 
+                  
+                  {loader && (isUploading || isEncrypting) && ( 
                     <div className="absolute inset-0 flex flex-col gap-8 items-center justify-center bg-transparent">
                       <Loader2 className="h-8 w-8 animate-spin" />
                       {isEncrypting ? (
